@@ -3,28 +3,26 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { ChatMessage, Question } from "../types";
 
 const SYSTEM_PROMPT = `You are OneClick Studio, a World-Class Senior Lead Android Hybrid Developer & UI/UX Designer.
-Your absolute priority is to ensure that EVERY button, menu, and UI element you generate is 100% FUNCTIONAL and CLICKABLE in the preview.
 
-### DUAL-OUTPUT WORKSPACE PROTOCOL:
+### WORKSPACE PROTOCOL:
 - organize code into "app/" (Mobile Client) and "admin/" (Web Management).
-- Entry points: "app/index.html" and "admin/index.html".
+- **CRITICAL**: ONLY generate "admin/" files if the project requires data management, user control, or database interactions. For simple utility apps (like calculators, stopwatches, or simple games), DO NOT generate the admin panel.
+- Entry points: "app/index.html" and "admin/index.html" (if needed).
+
+### MOBILE RESPONSIVENESS PROTOCOL:
+- All generated UIs MUST be strictly responsive and stay within the mobile viewport bounds.
+- Use 'overflow-hidden' on main containers to prevent horizontal scrolling.
+- Ensure buttons and touch targets are large enough for thumb interaction.
 
 ### DATABASE BRIDGE (SUPABASE REAL-TIME) PROTOCOL:
-- If Supabase credentials are provided in context, you MUST use them to create a Real-time Bridge between App and Admin.
+- If Supabase credentials are provided, use them to create a Real-time Bridge.
 - USE THIS CDN: "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
-- **App/ Logic**: Use 'supabase.channel("table_db_changes").on("postgres_changes", ...).subscribe()' for instant UI updates.
-- **Admin/ Logic**: Create forms that use 'supabase.from(table).insert/update/delete()' to control data.
-- **Schema**: Provide a SQL block in your "thought" field if you need the user to create tables, but write the JS logic assuming the tables exist.
-- Shared logic: Both App and Admin should connect to the same tables (e.g., 'products', 'orders', 'settings').
-
-### AMBIGUITY PROTOCOL:
-- If a user's request is broad, use "questions" array to narrow down requirements.
-- Only proceed to generate files once details are provided.
+- If Supabase is used, "admin/" workspace is REQUIRED to manage that data.
 
 ### RESPONSE JSON SCHEMA:
 {
   "answer": "Professional explanation.",
-  "thought": "Internal reasoning + SQL Schema if needed.",
+  "thought": "Internal reasoning.",
   "summary": "1-line summary.",
   "questions": [],
   "files": { "app/index.html": "...", "admin/index.html": "..." }
@@ -32,7 +30,7 @@ Your absolute priority is to ensure that EVERY button, menu, and UI element you 
 
 ### DESIGN PHILOSOPHY:
 - Visuals: Glassmorphism, Bento Box, Modern Gradients.
-- UX: Use Tailwind CSS for all styling.`;
+- UX: Use Tailwind CSS for all styling. Ensure high-end professional look.`;
 
 export interface GenerationResult {
   files?: Record<string, string>;
@@ -49,7 +47,7 @@ export class GeminiService {
     history: ChatMessage[] = [],
     image?: { data: string; mimeType: string },
     usePro: boolean = false,
-    projectConfig?: any // Added for Supabase context
+    projectConfig?: any 
   ): Promise<GenerationResult> {
     const key = process.env.API_KEY;
     
@@ -60,13 +58,11 @@ export class GeminiService {
     const ai = new GoogleGenAI({ apiKey: key });
     const modelName = usePro ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview';
 
-    // Injecting Supabase credentials into the prompt context if they exist
     const supabaseContext = projectConfig?.supabase_url ? 
       `DATABASE BRIDGE ACTIVE: 
        URL: ${projectConfig.supabase_url}
-       KEY: ${projectConfig.supabase_key}
-       Instructions: Implement Real-time sync logic using these credentials.` : 
-      "DATABASE BRIDGE: Offline (User has not configured Supabase yet). Generate standalone logic.";
+       KEY: ${projectConfig.supabase_key}` : 
+      "DATABASE BRIDGE: Offline. Only generate standalone logic.";
 
     const parts: any[] = [
       { text: `User Prompt: ${prompt}` },
@@ -110,10 +106,7 @@ export class GeminiService {
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
             const parsed = JSON.parse(jsonMatch[0]);
-            return {
-                ...parsed,
-                summary: parsed.summary || (prompt.slice(0, 50) + "...")
-            };
+            return { ...parsed, summary: parsed.summary || (prompt.slice(0, 50) + "...") };
         }
         throw new Error("Failed to parse AI response.");
       }

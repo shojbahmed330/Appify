@@ -3,7 +3,7 @@ import React from 'react';
 import ChatBox from './ChatBox';
 import MobilePreview from './MobilePreview';
 import { MobileControls, DesktopBuildButton } from './DashboardControls';
-import { AppMode, ProjectConfig } from '../../types';
+import { AppMode } from '../../types';
 
 interface PreviewLayoutProps {
   props: any;
@@ -39,6 +39,8 @@ const PreviewLayout: React.FC<PreviewLayoutProps> = ({ props }) => {
         setWorkspace={props.setWorkspace}
         handleBuildAPK={props.handleBuildAPK}
         onOpenConfig={() => props.setMode(AppMode.CONFIG)}
+        onOpenHistory={() => { props.setMode(AppMode.EDIT); props.setShowHistory(true); }}
+        onOpenHelp={() => props.setMode(AppMode.HELP)}
       />
       <DesktopBuildButton onClick={props.handleBuildAPK} />
     </div>
