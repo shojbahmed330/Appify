@@ -1,12 +1,13 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { GithubConfig, BuildStep, User as UserType, ProjectConfig, Project } from '../types';
+import { GithubConfig, BuildStep, User as UserType, ProjectConfig, Project, WorkspaceType } from '../types';
 import { GeminiService } from '../services/geminiService';
 import { DatabaseService, ProjectHistoryItem } from '../services/dbService';
 import { GithubService } from '../services/githubService';
 
 export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null) => void) => {
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(localStorage.getItem('active_project_id'));
+  const [workspace, setWorkspace] = useState<WorkspaceType>('app');
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -122,6 +123,7 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
 
   return {
     messages, setMessages, input, setInput, isGenerating, projectFiles, setProjectFiles,
+    workspace, setWorkspace,
     selectedFile, setSelectedFile, openTabs, openFile: (path: string) => { if (!openTabs.includes(path)) setOpenTabs(prev => [...prev, path]); setSelectedFile(path); },
     closeFile: (path: string) => { setOpenTabs(prev => prev.filter(t => t !== path)); if (selectedFile === path) setSelectedFile(openTabs[0] || ''); },
     addFile: (path: string) => { setProjectFiles(prev => ({...prev, [path]: ''})); }, deleteFile: (path: string) => { const n = {...projectFiles}; delete n[path]; setProjectFiles(n); }, renameFile: (o:string, n:string) => { const x = {...projectFiles}; x[n] = x[o]; delete x[o]; setProjectFiles(x); },

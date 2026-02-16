@@ -9,6 +9,8 @@ import PreviewFrame from './PreviewFrame';
 
 interface MobilePreviewProps {
   projectFiles: Record<string, string>;
+  workspace: WorkspaceType;
+  setWorkspace: (w: WorkspaceType) => void;
   setMode: (m: AppMode) => void;
   handleBuildAPK: () => void;
   mobileTab: 'chat' | 'preview';
@@ -20,10 +22,9 @@ interface MobilePreviewProps {
 }
 
 const MobilePreview: React.FC<MobilePreviewProps> = ({ 
-  projectFiles, setMode, handleBuildAPK, mobileTab, isGenerating, projectConfig, projectId,
+  projectFiles, workspace, setWorkspace, setMode, handleBuildAPK, mobileTab, isGenerating, projectConfig, projectId,
   runtimeError, onAutoFix
 }) => {
-  const [workspace, setWorkspace] = useState<WorkspaceType>('app');
   const [showSplash, setShowSplash] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -74,10 +75,10 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({
   };
 
   return (
-    <section className={`flex-1 flex flex-col items-center justify-center p-6 relative h-full pt-20 lg:pt-6 overflow-hidden ${mobileTab === 'chat' ? 'hidden lg:flex' : 'flex'}`}>
+    <section className={`flex-1 flex flex-col items-center justify-center p-6 relative h-full pt-44 lg:pt-6 overflow-hidden ${mobileTab === 'chat' ? 'hidden lg:flex' : 'flex'}`}>
       
-      {/* Workspace Switcher */}
-      <div className="absolute top-10 left-1/2 -translate-x-1/2 z-40 w-full max-w-[340px]">
+      {/* Workspace Switcher - Hidden on Mobile, Managed by Floating Controls */}
+      <div className="absolute top-10 left-1/2 -translate-x-1/2 z-40 w-full max-w-[340px] hidden lg:block">
         <WorkspaceToggle active={workspace} onChange={setWorkspace} />
       </div>
 
@@ -90,7 +91,7 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({
         </div>
       )}
 
-      {/* PROFESSIONAL PREVIEW FRAME (The Core of Step 3) */}
+      {/* PROFESSIONAL PREVIEW FRAME */}
       <PreviewFrame workspace={workspace} appName={projectConfig?.appName}>
         {hasFiles ? (
           <div className="w-full h-full relative">

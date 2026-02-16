@@ -21,6 +21,8 @@ const PreviewLayout: React.FC<PreviewLayoutProps> = ({ props }) => {
         />
         <MobilePreview 
           projectFiles={props.previewOverride || props.projectFiles} 
+          workspace={props.workspace}
+          setWorkspace={props.setWorkspace}
           setMode={props.setMode} 
           handleBuildAPK={props.handleBuildAPK} mobileTab={props.mobileTab}
           isGenerating={props.isGenerating}
@@ -33,6 +35,8 @@ const PreviewLayout: React.FC<PreviewLayoutProps> = ({ props }) => {
       <MobileControls 
         mobileTab={props.mobileTab} 
         setMobileTab={props.setMobileTab} 
+        workspace={props.workspace}
+        setWorkspace={props.setWorkspace}
         handleBuildAPK={props.handleBuildAPK} 
       />
       <DesktopBuildButton onClick={props.handleBuildAPK} />

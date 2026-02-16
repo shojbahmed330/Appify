@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { AppMode, BuildStep, ProjectConfig } from '../types';
+import { AppMode, BuildStep, ProjectConfig, WorkspaceType } from '../types';
 import PreviewLayout from './components/PreviewLayout';
 import EditorLayout from './components/EditorLayout';
 import AppConfigView from './components/AppConfigView';
@@ -14,6 +14,8 @@ interface DashboardViewProps {
   isGenerating: boolean;
   projectFiles: Record<string, string>;
   setProjectFiles: (files: any) => void;
+  workspace: WorkspaceType;
+  setWorkspace: (w: WorkspaceType) => void;
   selectedFile: string;
   setSelectedFile: (file: string) => void;
   buildStatus: { status: string; message: string; apkUrl?: string; webUrl?: string };
