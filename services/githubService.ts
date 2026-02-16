@@ -87,23 +87,37 @@ jobs:
   }
 
   async createRepo(token: string, repoName: string): Promise<string> {
-    const headers = { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' };
+    const headers = { 
+      'Authorization': `token ${token}`, 
+      'Accept': 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json'
+    };
+    
     const userRes = await fetch('https://api.github.com/user', { headers });
     if (!userRes.ok) throw new Error("GitHub authentication failed.");
     const userData = await userRes.json();
     const username = userData.login;
     
-    // Check if repo exists
     const checkRes = await fetch(`https://api.github.com/repos/${username}/${repoName}`, { headers });
-    if (checkRes.ok) return username;
-
-    const createRes = await fetch('https://api.github.com/user/repos', {
-      method: 'POST',
-      headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: repoName, private: false, auto_init: true, has_pages: true })
-    });
     
-    if (!createRes.ok && createRes.status !== 422) throw new Error("Failed to create repository.");
+    if (!checkRes.ok) {
+      const createRes = await fetch('https://api.github.com/user/repos', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ name: repoName, private: false, auto_init: true })
+      });
+      if (!createRes.ok && createRes.status !== 422) throw new Error("Failed to create repository.");
+      
+      // CRITICAL: Automatically enable GitHub Pages with "workflow" build type
+      // We wait 2 seconds to let GitHub initialize the repo
+      await new Promise(r => setTimeout(r, 2000));
+      await fetch(`https://api.github.com/repos/${username}/${repoName}/pages`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ build_type: 'workflow' })
+      }).catch(err => console.error("Auto-Pages-Enable failed:", err));
+    }
+
     return username;
   }
 
