@@ -91,17 +91,33 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
     }
   };
 
-  const loadProject = (p: Project) => {
-    if (!p) return;
-    setCurrentProjectId(p.id);
-    localStorage.setItem('active_project_id', p.id);
-    setProjectFiles(p.files || {});
-    if (p.config) setProjectConfig(p.config);
-    if (p.files && p.files['index.html']) setSelectedFile('index.html');
-    else if (p.files) setSelectedFile(Object.keys(p.files)[0]);
-    setRuntimeError(null);
-    setPreviewOverride(null);
-    loadHistory(p.id);
+  /**
+   * Fix: Implement loadProject function to load a specific project into the workspace
+   */
+  const loadProject = (project: Project) => {
+    setCurrentProjectId(project.id);
+    localStorage.setItem('active_project_id', project.id);
+    setProjectFiles(project.files || {});
+    if (project.config) setProjectConfig(project.config);
+    
+    // Auto-select index.html if it exists, otherwise the first file in the project
+    if (project.files && project.files['index.html']) {
+      setSelectedFile('index.html');
+    } else if (project.files && Object.keys(project.files).length > 0) {
+      setSelectedFile(Object.keys(project.files)[0]);
+    }
+    
+    loadHistory(project.id);
+  };
+
+  const handleDeleteSnapshot = async (snapshotId: string) => {
+    if (!currentProjectId) return;
+    try {
+      await db.deleteProjectSnapshot(snapshotId);
+      setHistory(prev => prev.filter(h => h.id !== snapshotId));
+    } catch (e) {
+      alert("Failed to delete snapshot.");
+    }
   };
 
   const handleRollback = async (files: Record<string, string>, message: string) => {
@@ -110,6 +126,13 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
     setPreviewOverride(null);
     await db.updateProject(user.id, currentProjectId, files, projectConfig);
     const rollbackMsg = `Rollback to: ${message}`;
+    
+    // Automatic cleanup of old snapshots (Limit to 10)
+    if (history.length >= 10) {
+      const oldest = history[history.length - 1];
+      await db.deleteProjectSnapshot(oldest.id);
+    }
+
     await db.createProjectSnapshot(currentProjectId, files, rollbackMsg);
     
     if (githubConfig.token && githubConfig.repo) {
@@ -160,6 +183,13 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
         if (user && activeProjectId) {
           const changeSummary = res.summary || text.slice(0, 60);
           await db.updateProject(user.id, activeProjectId, newFiles, projectConfig);
+          
+          // Automatic cleanup of old snapshots (Limit to 10)
+          if (history.length >= 10) {
+            const oldestId = history[history.length - 1].id;
+            await db.deleteProjectSnapshot(oldestId);
+          }
+
           await db.createProjectSnapshot(activeProjectId, newFiles, changeSummary);
           
           if (githubConfig.token && githubConfig.repo) {
@@ -203,6 +233,11 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
         if (user && currentProjectId) {
           const fixSummary = `Auto-Fix: ${runtimeError.message}`;
           await db.updateProject(user.id, currentProjectId, newFiles, projectConfig);
+          
+          if (history.length >= 10) {
+            await db.deleteProjectSnapshot(history[history.length-1].id);
+          }
+
           await db.createProjectSnapshot(currentProjectId, newFiles, fixSummary);
           await loadHistory(currentProjectId);
         }
@@ -280,6 +315,7 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
     projectConfig, setProjectConfig: saveProjectConfig, currentProjectId, loadProject,
     runtimeError, handleAutoFix,
     history, isHistoryLoading, showHistory, setShowHistory, handleRollback,
-    previewOverride, setPreviewOverride, refreshHistory: () => currentProjectId && loadHistory(currentProjectId)
+    previewOverride, setPreviewOverride, refreshHistory: () => currentProjectId && loadHistory(currentProjectId),
+    handleDeleteSnapshot
   };
 };

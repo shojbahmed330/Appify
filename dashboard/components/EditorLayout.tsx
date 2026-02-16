@@ -23,6 +23,7 @@ const EditorLayout: React.FC<EditorLayoutProps> = ({ props }) => {
               onClose={() => props.setShowHistory(false)}
               loading={props.isHistoryLoading}
               onRefresh={props.refreshHistory}
+              onDelete={props.handleDeleteSnapshot}
             />
           ) : (
             <CodeEditor 

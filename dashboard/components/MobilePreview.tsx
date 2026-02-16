@@ -58,11 +58,25 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({
     }
   }, [hasFiles, isGenerating]);
 
-  const copyLink = () => {
+  const copyLink = async () => {
     if (previewUrl) {
-      navigator.clipboard.writeText(previewUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      try {
+        window.focus(); // Ensure document is focused
+        await navigator.clipboard.writeText(previewUrl);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (err) {
+        console.error("Clipboard Copy Failed:", err);
+        // Fallback for browsers with focus restrictions
+        const textArea = document.createElement("textarea");
+        textArea.value = previewUrl;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
     }
   };
 

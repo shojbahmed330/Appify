@@ -162,7 +162,17 @@ export class DatabaseService {
   }
 
   async deleteProject(userId: string, projectId: string) {
-    await this.supabase.from('projects').delete().eq('id', projectId).eq('user_id', userId);
+    const { data, error } = await this.supabase
+      .from('projects')
+      .delete()
+      .eq('id', projectId)
+      .eq('user_id', userId);
+    
+    if (error) {
+      console.error("Supabase Delete Error:", error);
+      throw error;
+    }
+    return data;
   }
 
   async saveProject(userId: string, name: string, files: Record<string, string>, config?: ProjectConfig) {
@@ -197,6 +207,11 @@ export class DatabaseService {
       .eq('project_id', projectId)
       .order('created_at', { ascending: false });
     return data || [];
+  }
+
+  async deleteProjectSnapshot(snapshotId: string) {
+    const { error } = await this.supabase.from('project_history').delete().eq('id', snapshotId);
+    if (error) throw error;
   }
 
   async signOut() {

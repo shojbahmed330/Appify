@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { History, Clock, ArrowLeft, RefreshCw, Check, Undo2, Eye, Zap, ShieldCheck } from 'lucide-react';
+import { History, Clock, ArrowLeft, RefreshCw, Undo2, Zap, ShieldCheck, Trash2 } from 'lucide-react';
 import { ProjectHistoryItem } from '../../services/dbService';
 
 interface VersionHistoryProps {
@@ -10,11 +10,12 @@ interface VersionHistoryProps {
   onPreview: (files: Record<string, string> | null) => void;
   onClose: () => void;
   onRefresh?: () => void;
+  onDelete?: (id: string) => void;
   loading?: boolean;
 }
 
 const VersionHistory: React.FC<VersionHistoryProps> = ({ 
-  history, onRollback, onPreview, onClose, onRefresh, loading 
+  history, onRollback, onPreview, onClose, onRefresh, onDelete, loading 
 }) => {
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
 
@@ -93,7 +94,7 @@ const VersionHistory: React.FC<VersionHistoryProps> = ({
             </div>
             <h3 className="text-lg font-black text-zinc-500 uppercase tracking-widest">No Snapshots Detected</h3>
             <p className="text-xs text-zinc-600 max-w-[280px] mt-2 font-bold uppercase leading-relaxed">
-              Snapshots are automatically created when AI generates code for an active project.
+              Snapshots are automatically created when AI generates code for an active project. (Limit: 10)
             </p>
             {onRefresh && (
               <button onClick={onRefresh} className="mt-8 px-8 py-3 bg-pink-500/10 border border-pink-500/20 text-pink-500 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-pink-500 hover:text-white transition-all">
@@ -112,36 +113,46 @@ const VersionHistory: React.FC<VersionHistoryProps> = ({
                 <div key={item.id} className="relative pl-14 group">
                   <div className={`absolute left-4 top-1 w-4 h-4 rounded-full border-2 z-10 transition-all duration-500 ${isActive ? 'bg-pink-500 border-pink-500 shadow-[0_0_15px_#ec4899]' : 'bg-zinc-900 border-zinc-700 group-hover:border-pink-500/50'}`}></div>
                   
-                  <div 
-                    onClick={() => handleSelectVersion(item)}
-                    className={`glass-tech p-6 rounded-[2rem] border transition-all cursor-pointer relative overflow-hidden ${isActive ? 'border-pink-500/40 bg-pink-500/5 ring-1 ring-pink-500/20' : 'border-white/5 hover:border-white/10'}`}
-                  >
-                    <div className="flex flex-col gap-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                          <Clock size={12}/>
-                          {new Date(item.created_at).toLocaleString()}
+                  <div className="flex gap-3">
+                    <div 
+                      onClick={() => handleSelectVersion(item)}
+                      className={`flex-1 glass-tech p-6 rounded-[2rem] border transition-all cursor-pointer relative overflow-hidden ${isActive ? 'border-pink-500/40 bg-pink-500/5 ring-1 ring-pink-500/20' : 'border-white/5 hover:border-white/10'}`}
+                    >
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                            <Clock size={12}/>
+                            {new Date(item.created_at).toLocaleString()}
+                          </div>
+                          {idx === 0 && (
+                            <span className="text-[9px] px-2 py-0.5 bg-green-500/10 border border-green-500/20 rounded-md text-green-500 font-black uppercase flex items-center gap-1">
+                              <ShieldCheck size={10}/> Latest
+                            </span>
+                          )}
                         </div>
-                        {idx === 0 && (
-                           <span className="text-[9px] px-2 py-0.5 bg-green-500/10 border border-green-500/20 rounded-md text-green-500 font-black uppercase flex items-center gap-1">
-                             <ShieldCheck size={10}/> Latest
-                           </span>
-                        )}
-                      </div>
-                      
-                      <h3 className={`font-bold leading-relaxed pr-2 transition-colors ${isActive ? 'text-pink-400' : 'text-white'}`}>
-                        {item.message || "Manual Snapshot"}
-                      </h3>
+                        
+                        <h3 className={`font-bold leading-relaxed pr-2 transition-colors ${isActive ? 'text-pink-400' : 'text-white'}`}>
+                          {item.message || "Manual Snapshot"}
+                        </h3>
 
-                      <div className="flex items-center gap-2">
-                         <span className="text-[9px] px-2 py-0.5 bg-white/5 border border-white/5 rounded-md text-zinc-600 font-black uppercase">
-                           {Object.keys(item.files).length} Files
-                         </span>
-                         {isActive && (
-                            <span className="text-[9px] text-pink-500 font-black uppercase tracking-widest animate-pulse">● Preview Active</span>
-                         )}
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] px-2 py-0.5 bg-white/5 border border-white/5 rounded-md text-zinc-600 font-black uppercase">
+                            {Object.keys(item.files).length} Files
+                          </span>
+                          {isActive && (
+                              <span className="text-[9px] text-pink-500 font-black uppercase tracking-widest animate-pulse">● Preview Active</span>
+                          )}
+                        </div>
                       </div>
                     </div>
+
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); onDelete && onDelete(item.id); }}
+                      className="p-4 bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white border border-red-500/20 rounded-2xl self-center transition-all opacity-0 group-hover:opacity-100"
+                      title="Delete version"
+                    >
+                      <Trash2 size={18}/>
+                    </button>
                   </div>
                 </div>
               );
