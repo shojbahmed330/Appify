@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Smartphone, Sparkles, Loader2, Cpu, QrCode, X, Copy, ExternalLink, SmartphoneNfc, Check } from 'lucide-react';
+import { Smartphone, Sparkles, Loader2, Cpu, QrCode, X, Copy, ExternalLink, SmartphoneNfc, Check, AlertCircle, Wrench } from 'lucide-react';
 import { AppMode, ProjectConfig } from '../../types';
 import { buildFinalHtml } from '../../utils/previewBuilder';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -13,10 +13,13 @@ interface MobilePreviewProps {
   isGenerating?: boolean;
   projectConfig?: ProjectConfig;
   projectId?: string | null;
+  runtimeError?: { message: string; line: number; source: string } | null;
+  onAutoFix?: () => void;
 }
 
 const MobilePreview: React.FC<MobilePreviewProps> = ({ 
-  projectFiles, setMode, handleBuildAPK, mobileTab, isGenerating, projectConfig, projectId
+  projectFiles, setMode, handleBuildAPK, mobileTab, isGenerating, projectConfig, projectId,
+  runtimeError, onAutoFix
 }) => {
   const [showSplash, setShowSplash] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
@@ -93,6 +96,25 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({
                   title="preview" 
                   sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals" 
                 />
+
+                {/* Runtime Error Overlay */}
+                {runtimeError && !isGenerating && (
+                  <div className="absolute inset-0 bg-black/80 backdrop-blur-md z-[250] flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
+                    <div className="w-16 h-16 bg-red-600/20 rounded-full flex items-center justify-center text-red-500 mb-6 border border-red-500/30">
+                      <AlertCircle size={32}/>
+                    </div>
+                    <h3 className="text-lg font-black text-white uppercase tracking-tighter mb-2">Runtime Error Detected</h3>
+                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-6 px-4 leading-relaxed">
+                      "{runtimeError.message}" in {runtimeError.source}
+                    </p>
+                    <button 
+                      onClick={onAutoFix}
+                      className="px-8 py-4 bg-pink-600 hover:bg-pink-500 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-3 shadow-xl shadow-pink-600/30 transition-all active:scale-95 group"
+                    >
+                      <Wrench size={14} className="group-hover:rotate-45 transition-transform"/> Repair with AI
+                    </button>
+                  </div>
+                )}
                 
                 {showSplash && (
                   <div className="absolute inset-0 bg-[#09090b] z-[200] flex flex-col items-center justify-center p-8 animate-in fade-in duration-300 fade-out slide-out-to-top-full fill-mode-forwards delay-1000">

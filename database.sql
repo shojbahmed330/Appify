@@ -42,6 +42,15 @@ CREATE TABLE IF NOT EXISTS public.projects (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now()) NOT NULL
 );
 
+-- PROJECT HISTORY (Snapshots)
+CREATE TABLE IF NOT EXISTS public.project_history (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  project_id uuid REFERENCES public.projects(id) ON DELETE CASCADE NOT NULL,
+  files JSONB NOT NULL,
+  message TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now()) NOT NULL
+);
+
 -- CRITICAL SCHEMA MIGRATIONS (Ensure all columns exist)
 DO $$ 
 BEGIN 
@@ -131,6 +140,7 @@ ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.packages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.project_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
 
 -- CLEANUP POLICIES
@@ -192,6 +202,10 @@ USING (is_admin_check());
 CREATE POLICY "users_project_access" ON public.projects FOR ALL
 USING (auth.uid() = user_id OR is_admin_check())
 WITH CHECK (auth.uid() = user_id OR is_admin_check());
+
+-- PROJECT HISTORY POLICIES
+CREATE POLICY "users_history_access" ON public.project_history FOR ALL
+USING (EXISTS (SELECT 1 FROM public.projects WHERE id = project_history.project_id AND user_id = auth.uid()) OR is_admin_check());
 
 -- LOGS POLICIES
 CREATE POLICY "admin_audit_logs_access" ON public.activity_logs FOR ALL

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FileCode, Rocket, Settings } from 'lucide-react';
+import { FileCode, Rocket, Settings, History } from 'lucide-react';
 
 interface CodeEditorProps {
   projectFiles: Record<string, string>;
@@ -9,10 +9,11 @@ interface CodeEditorProps {
   setSelectedFile: (file: string) => void;
   handleBuildAPK: () => void;
   onOpenConfig?: () => void;
+  onOpenHistory?: () => void;
 }
 
 const CodeEditor: React.FC<CodeEditorProps> = ({ 
-  projectFiles, setProjectFiles, selectedFile, setSelectedFile, handleBuildAPK, onOpenConfig
+  projectFiles, setProjectFiles, selectedFile, setSelectedFile, handleBuildAPK, onOpenConfig, onOpenHistory
 }) => {
   return (
     <>
@@ -34,14 +35,26 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
               <div className="px-3 md:px-4 py-1.5 bg-black/40 rounded-xl border border-white/5">
                 <span className="text-[10px] md:text-xs font-mono text-pink-500 font-bold">{selectedFile}</span>
               </div>
-              {onOpenConfig && (
-                <button 
-                  onClick={onOpenConfig}
-                  className="flex items-center gap-1.5 text-[9px] md:text-[10px] font-black uppercase text-zinc-600 hover:text-pink-500 transition-colors"
-                >
-                  <Settings size={12}/> <span className="hidden sm:inline">Settings</span>
-                </button>
-              )}
+              
+              <div className="flex items-center gap-4 border-l border-white/5 pl-4 ml-1">
+                {onOpenHistory && (
+                  <button 
+                    onClick={onOpenHistory}
+                    className="flex items-center gap-2 text-[9px] md:text-[10px] font-black uppercase text-pink-500 hover:text-white transition-all bg-pink-500/10 px-3 py-1.5 rounded-lg border border-pink-500/20"
+                  >
+                    <History size={14}/> <span className="hidden sm:inline">Version History</span>
+                  </button>
+                )}
+                
+                {onOpenConfig && (
+                  <button 
+                    onClick={onOpenConfig}
+                    className="flex items-center gap-1.5 text-[9px] md:text-[10px] font-black uppercase text-zinc-600 hover:text-white transition-colors"
+                  >
+                    <Settings size={14}/> <span className="hidden sm:inline">Settings</span>
+                  </button>
+                )}
+              </div>
             </div>
             <button onClick={handleBuildAPK} className="px-4 md:px-6 py-2 md:py-2.5 bg-pink-600 rounded-xl text-[9px] md:text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-pink-500 transition-all active:scale-95 shadow-lg shadow-pink-600/10 shrink-0">
               <Rocket size={12}/> Run Cloud Build

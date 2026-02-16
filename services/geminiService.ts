@@ -26,6 +26,7 @@ Your absolute priority is to ensure that EVERY button, menu, and UI element you 
 {
   "answer": "Professional explanation of what you are doing or asking.",
   "thought": "Internal reasoning.",
+  "summary": "A concise, technical 1-line summary of changes (max 60 chars) for version control.",
   "questions": [
     {
       "id": "unique_id",
@@ -46,6 +47,7 @@ export interface GenerationResult {
   answer: string;
   questions?: Question[];
   thought?: string;
+  summary?: string;
 }
 
 export class GeminiService {
@@ -95,16 +97,22 @@ export class GeminiService {
 
       try {
         const parsed = JSON.parse(text);
-        // Safety: Ensure questions and files are handled correctly even if empty
         return {
           answer: parsed.answer || "Processing request...",
           thought: parsed.thought || "",
+          summary: parsed.summary || (prompt.slice(0, 50) + "..."),
           questions: Array.isArray(parsed.questions) ? parsed.questions : [],
           files: typeof parsed.files === 'object' ? parsed.files : undefined
         };
       } catch (e) {
         const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (jsonMatch) return JSON.parse(jsonMatch[0]);
+        if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
+            return {
+                ...parsed,
+                summary: parsed.summary || (prompt.slice(0, 50) + "...")
+            };
+        }
         throw new Error("Failed to parse AI response as JSON.");
       }
     } catch (error: any) {

@@ -2,6 +2,32 @@
 export const buildFinalHtml = (projectFiles: Record<string, string>) => {
   const polyfill = `
     <script>
+      // Error Reporting System
+      window.onerror = function(message, source, lineno, colno, error) {
+        window.parent.postMessage({
+          type: 'RUNTIME_ERROR',
+          error: { 
+            message: message, 
+            line: lineno, 
+            column: colno,
+            source: source ? source.split('/').pop() : 'index.html'
+          }
+        }, '*');
+        return false;
+      };
+
+      window.onunhandledrejection = function(event) {
+        window.parent.postMessage({
+          type: 'RUNTIME_ERROR',
+          error: { 
+            message: event.reason?.message || 'Unhandled Promise Rejection',
+            line: 0,
+            column: 0,
+            source: 'index.html'
+          }
+        }, '*');
+      };
+
       // Enhanced Native Bridge Simulation
       window.NativeBridge = {
         getUsageStats: () => Promise.resolve({ screenTime: '4h 20m', topApp: 'Social Media' }),
@@ -54,7 +80,7 @@ export const buildFinalHtml = (projectFiles: Record<string, string>) => {
     
   const jsContent = Object.entries(projectFiles)
     .filter(([path]) => path.endsWith('.js'))
-    .map(([path, content]) => `// --- FILE: ${path} ---\ntry {\n${content}\n} catch(e) { console.error("Error in ${path}:", e); }\n`)
+    .map(([path, content]) => `// --- FILE: ${path} ---\ntry {\n${content}\n} catch(e) { console.error("Error in ${path}:", e); throw e; }\n`)
     .join('\n');
   
   const tailwindCdn = '<script src="https://cdn.tailwindcss.com"></script>';

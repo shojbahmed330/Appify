@@ -8,6 +8,14 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const MASTER_USER_ID = '329a8566-838f-4e61-a91c-2e6c6d492420';
 const PRIMARY_ADMIN = 'rajshahi.jibon@gmail.com';
 
+export interface ProjectHistoryItem {
+  id: string;
+  project_id: string;
+  files: Record<string, string>;
+  message: string;
+  created_at: string;
+}
+
 export class DatabaseService {
   private static instance: DatabaseService;
   public supabase: SupabaseClient;
@@ -169,6 +177,26 @@ export class DatabaseService {
 
   async renameProject(userId: string, projectId: string, newName: string) {
     await this.supabase.from('projects').update({ name: newName, updated_at: new Date().toISOString() }).eq('id', projectId).eq('user_id', userId);
+  }
+
+  // Version Control Methods
+  async createProjectSnapshot(projectId: string, files: Record<string, string>, message: string) {
+    const { data, error } = await this.supabase.from('project_history').insert({
+      project_id: projectId,
+      files,
+      message
+    }).select().single();
+    if (error) throw error;
+    return data;
+  }
+
+  async getProjectHistory(projectId: string): Promise<ProjectHistoryItem[]> {
+    const { data, error } = await this.supabase
+      .from('project_history')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false });
+    return data || [];
   }
 
   async signOut() {

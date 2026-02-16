@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { GithubConfig, BuildStep, User as UserType, ProjectConfig, Project } from '../types';
 import { GeminiService } from '../services/geminiService';
-import { DatabaseService } from '../services/dbService';
+import { DatabaseService, ProjectHistoryItem } from '../services/dbService';
 import { GithubService } from '../services/githubService';
 
 export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null) => void) => {
@@ -10,6 +10,7 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [runtimeError, setRuntimeError] = useState<{ message: string; line: number; source: string } | null>(null);
   const [selectedImage, setSelectedImage] = useState<{ data: string; mimeType: string; preview: string } | null>(null);
   const [projectFiles, setProjectFiles] = useState<Record<string, string>>({
     'index.html': '<div style="background:#09090b; color:#f4f4f5; height:100vh; display:flex; align-items:center; justify-content:center; font-family:sans-serif; text-align:center; padding: 20px;"><h1>OneClick Studio</h1></div>'
@@ -27,6 +28,12 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
     owner: '' 
   });
 
+  // History State
+  const [history, setHistory] = useState<ProjectHistoryItem[]>([]);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [previewOverride, setPreviewOverride] = useState<Record<string, string> | null>(null);
+
   const gemini = useRef(new GeminiService());
   const db = DatabaseService.getInstance();
   const github = useRef(new GithubService());
@@ -40,6 +47,7 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
           if (p.config) setProjectConfig(p.config);
           if (p.files && p.files['index.html']) setSelectedFile('index.html');
           else if (p.files) setSelectedFile(Object.keys(p.files)[0]);
+          loadHistory(currentProjectId);
         }
       });
     }
@@ -54,10 +62,34 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
       });
     }
   }, [user]);
+
+  // Listen for runtime errors from the preview iframe
+  useEffect(() => {
+    const handleIframeMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'RUNTIME_ERROR') {
+        setRuntimeError(event.data.error);
+      }
+    };
+    window.addEventListener('message', handleIframeMessage);
+    return () => window.removeEventListener('message', handleIframeMessage);
+  }, []);
   
   const [buildStatus, setBuildStatus] = useState<{ status: 'idle' | 'pushing' | 'building' | 'success' | 'error', message: string, apkUrl?: string, webUrl?: string }>({ status: 'idle', message: '' });
   const [buildSteps, setBuildSteps] = useState<BuildStep[]>([]);
   const [isDownloading, setIsDownloading] = useState(false);
+
+  const loadHistory = async (projectId: string) => {
+    if (!projectId) return;
+    setIsHistoryLoading(true);
+    try {
+      const data = await db.getProjectHistory(projectId);
+      setHistory(data);
+    } catch (e) {
+      console.error("Failed to load history:", e);
+    } finally {
+      setIsHistoryLoading(false);
+    }
+  };
 
   const loadProject = (p: Project) => {
     if (!p) return;
@@ -67,6 +99,25 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
     if (p.config) setProjectConfig(p.config);
     if (p.files && p.files['index.html']) setSelectedFile('index.html');
     else if (p.files) setSelectedFile(Object.keys(p.files)[0]);
+    setRuntimeError(null);
+    setPreviewOverride(null);
+    loadHistory(p.id);
+  };
+
+  const handleRollback = async (files: Record<string, string>, message: string) => {
+    if (!currentProjectId || !user) return;
+    setProjectFiles(files);
+    setPreviewOverride(null);
+    await db.updateProject(user.id, currentProjectId, files, projectConfig);
+    const rollbackMsg = `Rollback to: ${message}`;
+    await db.createProjectSnapshot(currentProjectId, files, rollbackMsg);
+    
+    if (githubConfig.token && githubConfig.repo) {
+        github.current.pushToGithub(githubConfig, files, projectConfig, rollbackMsg).catch(console.error);
+    }
+    
+    await loadHistory(currentProjectId);
+    setShowHistory(false);
   };
 
   const handleSend = async (extraData?: string) => {
@@ -74,18 +125,21 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
     const text = extraData || input; 
     const currentImage = selectedImage;
 
-    if (extraData) {
-      setMessages(prev => {
-        const lastAsstIdx = [...prev].reverse().findIndex(m => m.role === 'assistant' && m.questions);
-        if (lastAsstIdx !== -1) {
-          const actualIdx = prev.length - 1 - lastAsstIdx;
-          const updated = [...prev];
-          updated[actualIdx] = { ...updated[actualIdx], answersSummary: extraData };
-          return updated;
-        }
-        return prev;
-      });
-    } else {
+    setIsGenerating(true);
+    setRuntimeError(null);
+
+    try {
+      // Step 1: Ensure Project Exists
+      let activeProjectId = currentProjectId;
+      if (!activeProjectId && user) {
+        const autoProj = await db.saveProject(user.id, "Auto-saved Project", projectFiles, projectConfig);
+        activeProjectId = autoProj.id;
+        setCurrentProjectId(activeProjectId);
+        localStorage.setItem('active_project_id', activeProjectId);
+        // Create initial snapshot
+        await db.createProjectSnapshot(activeProjectId, projectFiles, "Initial Project Setup");
+      }
+
       setMessages(prev => [...prev, { 
         id: Date.now().toString(), 
         role: 'user', 
@@ -95,10 +149,7 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
       }]);
       setInput(''); 
       setSelectedImage(null);
-    }
 
-    setIsGenerating(true);
-    try {
       const usePro = user ? user.tokens > 100 : false;
       const res = await gemini.current.generateWebsite(text, projectFiles, messages, currentImage ? { data: currentImage.data, mimeType: currentImage.mimeType } : undefined, usePro);
 
@@ -106,9 +157,15 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
         const newFiles = { ...projectFiles, ...res.files };
         setProjectFiles(newFiles);
         
-        // AUTO-SYNC TO DATABASE IF PROJECT IS ACTIVE
-        if (user && currentProjectId) {
-          await db.updateProject(user.id, currentProjectId, newFiles, projectConfig);
+        if (user && activeProjectId) {
+          const changeSummary = res.summary || text.slice(0, 60);
+          await db.updateProject(user.id, activeProjectId, newFiles, projectConfig);
+          await db.createProjectSnapshot(activeProjectId, newFiles, changeSummary);
+          
+          if (githubConfig.token && githubConfig.repo) {
+              github.current.pushToGithub(githubConfig, newFiles, projectConfig, changeSummary).catch(console.error);
+          }
+          await loadHistory(activeProjectId);
         }
       }
 
@@ -129,6 +186,33 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
     } catch (e: any) { 
       setMessages(prev => [...prev, { id: Date.now().toString(), role: 'assistant', content: `Error: ${e.message}`, timestamp: Date.now() }]); 
     } finally { setIsGenerating(false); }
+  };
+
+  const handleAutoFix = async () => {
+    if (!runtimeError || isGenerating || !currentProjectId) return;
+    
+    setIsGenerating(true);
+    const errorDescription = `CRITICAL RUNTIME ERROR detected: "${runtimeError.message}" at line ${runtimeError.line} in ${runtimeError.source}. Please fix this error and return the corrected files.`;
+    
+    try {
+      const res = await gemini.current.generateWebsite(errorDescription, projectFiles, messages, undefined, true);
+      
+      if (res.files) {
+        const newFiles = { ...projectFiles, ...res.files };
+        setProjectFiles(newFiles);
+        if (user && currentProjectId) {
+          const fixSummary = `Auto-Fix: ${runtimeError.message}`;
+          await db.updateProject(user.id, currentProjectId, newFiles, projectConfig);
+          await db.createProjectSnapshot(currentProjectId, newFiles, fixSummary);
+          await loadHistory(currentProjectId);
+        }
+        setRuntimeError(null);
+      }
+    } catch (e: any) {
+      console.error(e);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const saveProjectConfig = async (newConfig: ProjectConfig) => {
@@ -159,7 +243,7 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
       setGithubConfig(updatedConfig);
       if (user) await db.updateGithubConfig(user.id, updatedConfig);
       setBuildStatus({ status: 'pushing', message: 'Syncing source code...' });
-      await github.current.pushToGithub(updatedConfig, projectFiles, projectConfig);
+      await github.current.pushToGithub(updatedConfig, projectFiles, projectConfig, "Manual Trigger: Execution Build");
       setBuildStatus({ status: 'building', message: 'Compiling Android Binary...' });
       const checkInterval = setInterval(async () => {
         const runDetails = await github.current.getRunDetails(updatedConfig);
@@ -193,6 +277,9 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
     selectedFile, setSelectedFile, githubConfig, setGithubConfig, buildStatus, setBuildStatus,
     buildSteps, setBuildSteps, isDownloading, handleSend, handleBuildAPK, handleSecureDownload,
     selectedImage, setSelectedImage, handleImageSelect, 
-    projectConfig, setProjectConfig: saveProjectConfig, currentProjectId, loadProject
+    projectConfig, setProjectConfig: saveProjectConfig, currentProjectId, loadProject,
+    runtimeError, handleAutoFix,
+    history, isHistoryLoading, showHistory, setShowHistory, handleRollback,
+    previewOverride, setPreviewOverride, refreshHistory: () => currentProjectId && loadHistory(currentProjectId)
   };
 };

@@ -20,11 +20,14 @@ const PreviewLayout: React.FC<PreviewLayoutProps> = ({ props }) => {
           handleImageSelect={props.handleImageSelect}
         />
         <MobilePreview 
-          projectFiles={props.projectFiles} setMode={props.setMode} 
+          projectFiles={props.previewOverride || props.projectFiles} 
+          setMode={props.setMode} 
           handleBuildAPK={props.handleBuildAPK} mobileTab={props.mobileTab}
           isGenerating={props.isGenerating}
           projectConfig={props.projectConfig}
           projectId={props.projectId}
+          runtimeError={props.runtimeError}
+          onAutoFix={props.handleAutoFix}
         />
       </div>
       <MobileControls 

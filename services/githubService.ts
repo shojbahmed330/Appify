@@ -152,7 +152,7 @@ jobs:
     return username;
   }
 
-  async pushToGithub(config: GithubConfig, files: Record<string, string>, appConfig?: ProjectConfig) {
+  async pushToGithub(config: GithubConfig, files: Record<string, string>, appConfig?: ProjectConfig, customMessage?: string) {
     const token = config.token.trim();
     const owner = config.owner.trim();
     const repo = config.repo.trim();
@@ -185,6 +185,8 @@ jobs:
       webDir: 'www',
       bundledWebRuntime: false
     };
+
+    const commitMessage = customMessage || "Build Engine Sync";
 
     // Prepare all files
     const allFiles: Record<string, string> = { 
@@ -220,7 +222,7 @@ jobs:
         method: 'PUT',
         headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: `Build Engine Sync: ${path}`,
+          message: `${commitMessage} [${path}]`,
           content: finalContent,
           sha: sha // CRITICAL: This ensures we update the existing file correctly
         })

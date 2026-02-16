@@ -2,6 +2,7 @@
 import React from 'react';
 import CodeEditor from './CodeEditor';
 import BuildStatusDisplay from './BuildStatusDisplay';
+import VersionHistory from './VersionHistory';
 import { AppMode } from '../../types';
 
 interface EditorLayoutProps {
@@ -13,12 +14,27 @@ const EditorLayout: React.FC<EditorLayoutProps> = ({ props }) => {
     <div className="flex-1 flex flex-col md:flex-row overflow-hidden animate-in fade-in duration-500 bg-[#09090b]">
       {props.buildStatus.status === 'idle' ? (
         <div className="flex-1 flex overflow-hidden">
-          <CodeEditor 
-            projectFiles={props.projectFiles} setProjectFiles={props.setProjectFiles} 
-            selectedFile={props.selectedFile} setSelectedFile={props.setSelectedFile} 
-            handleBuildAPK={props.handleBuildAPK} 
-            onOpenConfig={() => props.setMode(AppMode.CONFIG)}
-          />
+          {props.showHistory ? (
+            <VersionHistory 
+              history={props.history} 
+              currentFiles={props.projectFiles}
+              onRollback={props.handleRollback}
+              onPreview={props.setPreviewOverride}
+              onClose={() => props.setShowHistory(false)}
+              loading={props.isHistoryLoading}
+              onRefresh={props.refreshHistory}
+            />
+          ) : (
+            <CodeEditor 
+              projectFiles={props.projectFiles} 
+              setProjectFiles={props.setProjectFiles} 
+              selectedFile={props.selectedFile} 
+              setSelectedFile={props.setSelectedFile} 
+              handleBuildAPK={props.handleBuildAPK} 
+              onOpenConfig={() => props.setMode(AppMode.CONFIG)}
+              onOpenHistory={() => props.setShowHistory(true)}
+            />
+          )}
         </div>
       ) : (
         <BuildStatusDisplay 
