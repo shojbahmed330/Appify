@@ -37,7 +37,8 @@ const PreviewLayout: React.FC<PreviewLayoutProps> = ({ props }) => {
         setMobileTab={props.setMobileTab} 
         workspace={props.workspace}
         setWorkspace={props.setWorkspace}
-        handleBuildAPK={props.handleBuildAPK} 
+        handleBuildAPK={props.handleBuildAPK}
+        onOpenConfig={() => props.setMode(AppMode.CONFIG)}
       />
       <DesktopBuildButton onClick={props.handleBuildAPK} />
     </div>

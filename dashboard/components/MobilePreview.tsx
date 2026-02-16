@@ -75,7 +75,7 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({
   };
 
   return (
-    <section className={`flex-1 flex flex-col items-center justify-center p-6 relative h-full pt-44 lg:pt-6 overflow-hidden ${mobileTab === 'chat' ? 'hidden lg:flex' : 'flex'}`}>
+    <section className={`flex-1 flex flex-col items-center justify-center p-6 relative h-full pt-52 lg:pt-6 overflow-hidden ${mobileTab === 'chat' ? 'hidden lg:flex' : 'flex'}`}>
       
       {/* Workspace Switcher - Hidden on Mobile, Managed by Floating Controls */}
       <div className="absolute top-10 left-1/2 -translate-x-1/2 z-40 w-full max-w-[340px] hidden lg:block">
