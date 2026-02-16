@@ -9,34 +9,36 @@ interface BuildStatusDisplayProps {
   message: string;
   apkUrl?: string;
   webUrl?: string;
+  runUrl?: string;
   buildSteps: BuildStep[];
   handleSecureDownload: () => void;
   resetBuild: () => void;
 }
 
 const BuildStatusDisplay: React.FC<BuildStatusDisplayProps> = ({
-  status, message, apkUrl, webUrl, buildSteps, handleSecureDownload, resetBuild
+  status, message, apkUrl, webUrl, runUrl, buildSteps, handleSecureDownload, resetBuild
 }) => {
-  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [qrMobileUrl, setQrMobileUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [copiedWeb, setCopiedWeb] = useState(false);
 
   useEffect(() => {
-    if (status === 'success' && webUrl) {
+    // Generate QR Code for Mobile (pointing to the GitHub Run URL for APK download)
+    if (status === 'success' && runUrl) {
       import('https://esm.sh/qrcode').then(QRCode => {
-        QRCode.toDataURL(webUrl, {
+        QRCode.toDataURL(runUrl, {
           width: 250,
           margin: 1,
           color: { dark: '#000000', light: '#ffffff' },
           errorCorrectionLevel: 'H'
         }).then(url => {
-          setQrDataUrl(url);
+          setQrMobileUrl(url);
         }).catch(err => {
-          console.error("QR Generation Failed:", err);
+          console.error("QR Generation Failed for Mobile:", err);
         });
       });
     }
-  }, [status, webUrl]);
+  }, [status, runUrl]);
 
   const copyUrl = async (url: string, setFn: (v: boolean) => void) => {
     try {
@@ -74,14 +76,17 @@ const BuildStatusDisplay: React.FC<BuildStatusDisplayProps> = ({
                   <h3 className="text-sm font-black uppercase tracking-widest text-white">Mobile Build</h3>
                 </div>
                 <div className="relative p-4 bg-white rounded-[2rem] mx-auto w-[160px] h-[160px] flex items-center justify-center overflow-hidden border-4 border-pink-500/20">
-                  {qrDataUrl ? <img src={qrDataUrl} className="w-full h-full object-contain" /> : <Loader2 className="animate-spin text-pink-500" />}
+                  {qrMobileUrl ? <img src={qrMobileUrl} className="w-full h-full object-contain" /> : <Loader2 className="animate-spin text-pink-500" />}
                 </div>
-                <button 
-                  onClick={handleSecureDownload} 
-                  className="w-full flex items-center justify-center gap-3 py-4 bg-pink-600 hover:bg-pink-500 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl transition-all active:scale-95"
-                >
-                  <Download size={14}/> Download APK (ZIP)
-                </button>
+                <div className="space-y-2">
+                  <button 
+                    onClick={handleSecureDownload} 
+                    className="w-full flex items-center justify-center gap-3 py-4 bg-pink-600 hover:bg-pink-500 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl transition-all active:scale-95"
+                  >
+                    <Download size={14}/> Download APK (ZIP)
+                  </button>
+                  <p className="text-[8px] font-black text-zinc-500 uppercase mt-2">Scan QR to visit GitHub Build Page</p>
+                </div>
               </div>
 
               {/* WEB SIDE */}

@@ -49,7 +49,7 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
     if (user) setGithubConfig({ token: user.github_token || '', owner: user.github_owner || '', repo: user.github_repo || '' });
   }, [user]);
 
-  const [buildStatus, setBuildStatus] = useState<{ status: 'idle' | 'pushing' | 'building' | 'success' | 'error', message: string, apkUrl?: string, webUrl?: string }>({ status: 'idle', message: '' });
+  const [buildStatus, setBuildStatus] = useState<{ status: 'idle' | 'pushing' | 'building' | 'success' | 'error', message: string, apkUrl?: string, webUrl?: string, runUrl?: string }>({ status: 'idle', message: '' });
   const [buildSteps, setBuildSteps] = useState<BuildStep[]>([]);
   const [isDownloading, setIsDownloading] = useState(false);
 
@@ -82,13 +82,18 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
 
         setBuildSteps(details.jobs.flatMap((j: any) => j.steps || []));
 
-        // Important: Check overall run conclusion
         if (details.run.status === 'completed') {
           if (buildPollingRef.current) clearInterval(buildPollingRef.current);
           
           if (details.run.conclusion === 'success') {
             const artifacts = await github.current.getLatestApk(updatedConfig);
-            setBuildStatus({ status: 'success', message: 'Build Complete!', apkUrl: artifacts?.downloadUrl, webUrl: artifacts?.webUrl });
+            setBuildStatus({ 
+              status: 'success', 
+              message: 'Build Complete!', 
+              apkUrl: artifacts?.downloadUrl, 
+              webUrl: artifacts?.webUrl,
+              runUrl: artifacts?.runUrl 
+            });
           } else {
             setBuildStatus({ status: 'error', message: `Build Failed: ${details.run.conclusion?.toUpperCase()}` });
           }
@@ -115,7 +120,6 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
     } finally { setIsGenerating(false); }
   };
 
-  // Rest of functions... (simplified for code base clarity)
   return {
     messages, setMessages, input, setInput, isGenerating, projectFiles, setProjectFiles,
     selectedFile, setSelectedFile, openTabs, openFile: (path: string) => { if (!openTabs.includes(path)) setOpenTabs(prev => [...prev, path]); setSelectedFile(path); },

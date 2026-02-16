@@ -8,6 +8,11 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# Prevent multiple concurrent runs for the same project
+concurrency:
+  group: \${{ github.workflow }}-\${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
   pages: write
@@ -108,14 +113,19 @@ jobs:
       });
       if (!createRes.ok && createRes.status !== 422) throw new Error("Failed to create repository.");
       
-      // CRITICAL: Automatically enable GitHub Pages with "workflow" build type
-      // We wait 2 seconds to let GitHub initialize the repo
-      await new Promise(r => setTimeout(r, 2000));
-      await fetch(`https://api.github.com/repos/${username}/${repoName}/pages`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ build_type: 'workflow' })
-      }).catch(err => console.error("Auto-Pages-Enable failed:", err));
+      // Wait longer to ensure repo metadata is initialized
+      await new Promise(r => setTimeout(r, 3000));
+      
+      // Attempt to enable Pages multiple times if it fails
+      for (let i = 0; i < 3; i++) {
+        const pagesRes = await fetch(`https://api.github.com/repos/${username}/${repoName}/pages`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ build_type: 'workflow' })
+        });
+        if (pagesRes.ok) break;
+        await new Promise(r => setTimeout(r, 2000));
+      }
     }
 
     return username;
@@ -129,15 +139,19 @@ jobs:
     let sanitizedAppId = (appConfig?.packageName || 'com.oneclick.studio').toLowerCase().replace(/[^a-z0-9.]/g, '');
     const capConfig = { appId: sanitizedAppId, appName: appConfig?.appName || 'OneClickApp', webDir: 'www' };
     
+    // Prepare files, but keep workflow separate
     const allFiles: Record<string, string> = { 
         ...files, 
-        '.github/workflows/android.yml': this.workflowYaml,
         'capacitor.config.json': JSON.stringify(capConfig, null, 2)
     };
 
     if (appConfig?.icon) allFiles['assets/icon-only.png'] = appConfig.icon;
 
-    for (const [path, content] of Object.entries(allFiles)) {
+    const filePaths = Object.keys(allFiles);
+    
+    // Push regular files first
+    for (const path of filePaths) {
+      const content = allFiles[path];
       const isBase64 = content.startsWith('data:image') || path.startsWith('assets/');
       const finalContent = isBase64 ? content.split(',')[1] || content : this.toBase64(content);
 
@@ -154,6 +168,25 @@ jobs:
         body: JSON.stringify({ message: `${customMessage || "Sync"} [${path}]`, content: finalContent, sha })
       });
     }
+
+    // CRITICAL: Push the workflow file LAST so it only triggers ONE run with all files present
+    const workflowPath = '.github/workflows/android.yml';
+    const getWorkflowRes = await fetch(`${baseUrl}/contents/${workflowPath}`, { headers });
+    let workflowSha: string | undefined;
+    if (getWorkflowRes.ok) {
+      const data = await getWorkflowRes.json();
+      workflowSha = data.sha;
+    }
+
+    await fetch(`${baseUrl}/contents/${workflowPath}`, {
+      method: 'PUT',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        message: `Trigger Build Engine [${workflowPath}]`, 
+        content: this.toBase64(this.workflowYaml), 
+        sha: workflowSha 
+      })
+    });
   }
 
   async getRunDetails(config: GithubConfig) {
@@ -178,10 +211,11 @@ jobs:
     const data = await artifactsRes.json();
     const artifact = data.artifacts?.find((a: any) => a.name === 'app-debug');
     
-    return artifact ? { 
-      downloadUrl: artifact.archive_download_url, 
-      webUrl: `https://${config.owner}.github.io/${config.repo}/` 
-    } : null;
+    return { 
+      downloadUrl: artifact?.archive_download_url, 
+      webUrl: `https://${config.owner}.github.io/${config.repo}/`,
+      runUrl: details.run.html_url
+    };
   }
 
   async downloadArtifact(config: GithubConfig, url: string) {
