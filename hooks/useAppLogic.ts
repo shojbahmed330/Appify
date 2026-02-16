@@ -1,5 +1,5 @@
 
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { GithubConfig, BuildStep, User as UserType, ProjectConfig, Project } from '../types';
 import { GeminiService } from '../services/geminiService';
 import { DatabaseService, ProjectHistoryItem } from '../services/dbService';
@@ -22,6 +22,8 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
   });
 
   const [selectedFile, setSelectedFile] = useState('index.html');
+  const [openTabs, setOpenTabs] = useState<string[]>(['index.html']);
+  
   const [githubConfig, setGithubConfig] = useState<GithubConfig>({ 
     token: '', 
     repo: '', 
@@ -37,6 +39,28 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
   const gemini = useRef(new GeminiService());
   const db = DatabaseService.getInstance();
   const github = useRef(new GithubService());
+  // Use ReturnType<typeof setTimeout> instead of NodeJS.Timeout for better cross-environment compatibility
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Auto-save logic (Step 3)
+  useEffect(() => {
+    if (!user || !currentProjectId || isGenerating) return;
+
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    
+    autoSaveTimerRef.current = setTimeout(async () => {
+      try {
+        await db.updateProject(user.id, currentProjectId, projectFiles, projectConfig);
+        console.log("Auto-save successful");
+      } catch (e) {
+        console.error("Auto-save failed:", e);
+      }
+    }, 3000); // 3 second debounce
+
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    };
+  }, [projectFiles, projectConfig, currentProjectId, user, isGenerating]);
 
   // Restore Project on Mount/Reload
   useEffect(() => {
@@ -45,8 +69,16 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
         if (p) {
           setProjectFiles(p.files || {});
           if (p.config) setProjectConfig(p.config);
-          if (p.files && p.files['index.html']) setSelectedFile('index.html');
-          else if (p.files) setSelectedFile(Object.keys(p.files)[0]);
+          
+          const files = p.files || {};
+          if (files['index.html']) {
+            setSelectedFile('index.html');
+            setOpenTabs(['index.html']);
+          } else {
+            const firstFile = Object.keys(files)[0] || '';
+            setSelectedFile(firstFile);
+            setOpenTabs(firstFile ? [firstFile] : []);
+          }
           loadHistory(currentProjectId);
         }
       });
@@ -75,7 +107,7 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
   }, []);
   
   const [buildStatus, setBuildStatus] = useState<{ status: 'idle' | 'pushing' | 'building' | 'success' | 'error', message: string, apkUrl?: string, webUrl?: string }>({ status: 'idle', message: '' });
-  const [buildSteps, setBuildSteps] = useState<BuildStep[]>([]);
+  const [buildStatusSteps, setBuildSteps] = useState<BuildStep[]>([]);
   const [isDownloading, setIsDownloading] = useState(false);
 
   const loadHistory = async (projectId: string) => {
@@ -91,23 +123,65 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
     }
   };
 
-  /**
-   * Fix: Implement loadProject function to load a specific project into the workspace
-   */
   const loadProject = (project: Project) => {
     setCurrentProjectId(project.id);
     localStorage.setItem('active_project_id', project.id);
     setProjectFiles(project.files || {});
     if (project.config) setProjectConfig(project.config);
     
-    // Auto-select index.html if it exists, otherwise the first file in the project
     if (project.files && project.files['index.html']) {
       setSelectedFile('index.html');
+      setOpenTabs(['index.html']);
     } else if (project.files && Object.keys(project.files).length > 0) {
-      setSelectedFile(Object.keys(project.files)[0]);
+      const first = Object.keys(project.files)[0];
+      setSelectedFile(first);
+      setOpenTabs([first]);
     }
     
     loadHistory(project.id);
+  };
+
+  const openFile = (path: string) => {
+    if (!openTabs.includes(path)) {
+      setOpenTabs(prev => [...prev, path]);
+    }
+    setSelectedFile(path);
+  };
+
+  const closeFile = (path: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const newTabs = openTabs.filter(t => t !== path);
+    setOpenTabs(newTabs);
+    if (selectedFile === path && newTabs.length > 0) {
+      setSelectedFile(newTabs[newTabs.length - 1]);
+    } else if (newTabs.length === 0) {
+      setSelectedFile('');
+    }
+  };
+
+  const addFile = (path: string) => {
+    if (projectFiles[path]) return;
+    setProjectFiles(prev => ({ ...prev, [path]: '' }));
+    openFile(path);
+  };
+
+  const deleteFile = (path: string) => {
+    const next = { ...projectFiles };
+    delete next[path];
+    setProjectFiles(next);
+    closeFile(path);
+  };
+
+  const renameFile = (oldPath: string, newPath: string) => {
+    if (projectFiles[newPath]) return;
+    const next = { ...projectFiles };
+    next[newPath] = next[oldPath];
+    delete next[oldPath];
+    setProjectFiles(next);
+    
+    const nextTabs = openTabs.map(t => t === oldPath ? newPath : t);
+    setOpenTabs(nextTabs);
+    if (selectedFile === oldPath) setSelectedFile(newPath);
   };
 
   const handleDeleteSnapshot = async (snapshotId: string) => {
@@ -127,7 +201,6 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
     await db.updateProject(user.id, currentProjectId, files, projectConfig);
     const rollbackMsg = `Rollback to: ${message}`;
     
-    // Automatic cleanup of old snapshots (Limit to 10)
     if (history.length >= 10) {
       const oldest = history[history.length - 1];
       await db.deleteProjectSnapshot(oldest.id);
@@ -152,14 +225,12 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
     setRuntimeError(null);
 
     try {
-      // Step 1: Ensure Project Exists
       let activeProjectId = currentProjectId;
       if (!activeProjectId && user) {
         const autoProj = await db.saveProject(user.id, "Auto-saved Project", projectFiles, projectConfig);
         activeProjectId = autoProj.id;
         setCurrentProjectId(activeProjectId);
         localStorage.setItem('active_project_id', activeProjectId);
-        // Create initial snapshot
         await db.createProjectSnapshot(activeProjectId, projectFiles, "Initial Project Setup");
       }
 
@@ -184,7 +255,6 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
           const changeSummary = res.summary || text.slice(0, 60);
           await db.updateProject(user.id, activeProjectId, newFiles, projectConfig);
           
-          // Automatic cleanup of old snapshots (Limit to 10)
           if (history.length >= 10) {
             const oldestId = history[history.length - 1].id;
             await db.deleteProjectSnapshot(oldestId);
@@ -309,8 +379,10 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
 
   return {
     messages, setMessages, input, setInput, isGenerating, projectFiles, setProjectFiles,
-    selectedFile, setSelectedFile, githubConfig, setGithubConfig, buildStatus, setBuildStatus,
-    buildSteps, setBuildSteps, isDownloading, handleSend, handleBuildAPK, handleSecureDownload,
+    selectedFile, setSelectedFile, openTabs, openFile, closeFile,
+    addFile, deleteFile, renameFile,
+    githubConfig, setGithubConfig, buildStatus, setBuildStatus,
+    buildSteps: buildStatusSteps, setBuildSteps, isDownloading, handleSend, handleBuildAPK, handleSecureDownload,
     selectedImage, setSelectedImage, handleImageSelect, 
     projectConfig, setProjectConfig: saveProjectConfig, currentProjectId, loadProject,
     runtimeError, handleAutoFix,

@@ -34,6 +34,12 @@ const EditorLayout: React.FC<EditorLayoutProps> = ({ props }) => {
               handleBuildAPK={props.handleBuildAPK} 
               onOpenConfig={() => props.setMode(AppMode.CONFIG)}
               onOpenHistory={() => props.setShowHistory(true)}
+              openTabs={props.openTabs}
+              openFile={props.openFile}
+              closeFile={props.closeFile}
+              addFile={props.addFile}
+              deleteFile={props.deleteFile}
+              renameFile={props.renameFile}
             />
           )}
         </div>
