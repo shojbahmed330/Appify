@@ -61,8 +61,8 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   const lineCount = (projectFiles[selectedFile] || '').split('\n').length;
 
   return (
-    <div className="flex-1 flex overflow-hidden w-full max-w-full">
-      {/* Activity Bar hidden on mobile to maximize coding space */}
+    <div className="flex-1 flex overflow-hidden w-full max-w-full relative">
+      {/* Activity Bar - Sidebar toggle logic for mobile if needed */}
       <div className="hidden lg:flex">
         <ActivityBar activeView={activeView} onViewChange={handleViewChange} />
       </div>
@@ -98,13 +98,12 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
                      {log.msg}
                   </div>
                ))}
-               <div className="h-4"></div>
             </div>
          </div>
       </aside>
 
-      <main className="flex-1 flex flex-col min-w-0 bg-[#0c0c0e] overflow-hidden w-full">
-         <div className="w-full overflow-x-auto no-scrollbar">
+      <main className="flex-1 flex flex-col min-w-0 bg-[#0c0c0e] overflow-hidden w-full relative">
+         <div className="w-full overflow-hidden">
             <EditorTabs 
                 tabs={openTabs} 
                 activeTab={selectedFile} 
@@ -114,39 +113,24 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
          </div>
          
          <div className="flex-1 flex flex-col p-2 md:p-4 overflow-hidden w-full">
-            <div className="flex flex-wrap items-center justify-between mb-3 px-2 gap-2">
+            <div className="flex items-center justify-between mb-2 px-2">
                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-pink-500/5 rounded-xl border border-pink-500/20">
+                  <div className="flex items-center gap-2 px-3 py-1 bg-pink-500/5 rounded-xl border border-pink-500/20 shrink-0">
                     <Code2 size={12} className="text-pink-500"/>
-                    <span className="text-[9px] md:text-[10px] font-black text-pink-500 uppercase tracking-widest">Studio Editor</span>
+                    <span className="text-[9px] font-black text-pink-500 uppercase tracking-widest">Editor</span>
                   </div>
-                  
-                  <div className="flex items-center gap-3 md:gap-4 border-l border-white/5 pl-3 md:pl-4">
-                    <button 
-                      onClick={() => handleViewChange('thinking')}
-                      className={`text-[9px] font-black uppercase transition-colors flex items-center gap-1.5 ${activeView === 'thinking' ? 'text-white' : 'text-zinc-500'}`}
-                    >
-                      <Brain size={12}/> <span className="hidden xs:inline">Insights</span>
-                    </button>
-                    <button 
-                      onClick={onOpenHistory}
-                      className="text-[9px] font-black uppercase text-zinc-500 hover:text-white transition-colors flex items-center gap-1.5"
-                    >
-                      <History size={12}/> <span className="hidden xs:inline">History</span>
-                    </button>
+                  <div className="hidden xs:flex items-center gap-3 border-l border-white/5 pl-3">
+                    <button onClick={() => handleViewChange('thinking')} className="text-[9px] font-black uppercase text-zinc-500 hover:text-white transition-colors">Insights</button>
+                    <button onClick={onOpenHistory} className="text-[9px] font-black uppercase text-zinc-500 hover:text-white transition-colors">History</button>
                   </div>
                </div>
-               
-               <button onClick={handleBuildAPK} className="px-4 md:px-6 py-2 md:py-2.5 bg-pink-600 hover:bg-pink-500 rounded-xl text-[9px] font-black uppercase tracking-widest text-white flex items-center gap-2 shadow-lg active:scale-95 transition-all">
-                  <Rocket size={12}/> <span>Build</span>
-               </button>
             </div>
 
-            <div className="flex-1 w-full bg-black/60 border border-white/5 rounded-[1.5rem] md:rounded-[2rem] overflow-hidden shadow-2xl relative flex group">
+            <div className="flex-1 w-full bg-black/60 border border-white/5 rounded-[1.5rem] overflow-hidden shadow-2xl relative flex group">
                {selectedFile ? (
                  <div className="flex-1 flex w-full h-full relative overflow-hidden">
                     {/* Compact Line Numbers for mobile */}
-                    <div className="w-8 md:w-12 bg-black/20 border-r border-white/5 py-4 md:py-8 text-right pr-2 md:pr-3 font-mono text-[9px] md:text-[11px] text-zinc-700 select-none shrink-0 overflow-hidden">
+                    <div className="w-8 md:w-12 bg-black/20 border-r border-white/5 py-4 md:py-8 text-right pr-2 font-mono text-[9px] md:text-[11px] text-zinc-700 select-none shrink-0 overflow-hidden">
                        {Array.from({ length: Math.max(lineCount, 50) }).map((_, i) => (
                          <div key={i} className="h-5 leading-5">{i + 1}</div>
                        ))}
@@ -155,7 +139,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
                        ref={editorRef}
                        value={projectFiles[selectedFile] || ''} 
                        onChange={e => setProjectFiles(prev => ({...prev, [selectedFile]: e.target.value}))} 
-                       className="flex-1 w-full bg-transparent py-4 md:py-8 px-4 md:px-6 font-mono text-[12px] md:text-[13px] text-zinc-300 outline-none resize-none custom-scrollbar leading-5 scroll-smooth whitespace-pre tab-size-2 overflow-x-auto overflow-y-auto" 
+                       className="flex-1 w-full bg-transparent py-4 md:py-8 px-4 font-mono text-[12px] md:text-[13px] text-zinc-300 outline-none resize-none custom-scrollbar leading-5 scroll-smooth whitespace-pre tab-size-2 overflow-x-auto overflow-y-auto" 
                        spellCheck={false}
                        autoCapitalize="none"
                        autoComplete="off"
@@ -163,10 +147,8 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
                  </div>
                ) : (
                  <div className="flex-1 flex flex-col items-center justify-center text-zinc-700 space-y-4">
-                    <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center border border-white/5">
-                      <Code2 size={24} />
-                    </div>
-                    <p className="text-[9px] font-black uppercase tracking-widest">Select component</p>
+                    <Code2 size={24} />
+                    <p className="text-[9px] font-black uppercase tracking-widest">Select file to edit</p>
                  </div>
                )}
             </div>
