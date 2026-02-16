@@ -12,11 +12,15 @@ export enum AppMode {
   HELP = 'HELP'
 }
 
+export type WorkspaceType = 'app' | 'admin';
+
 export interface ProjectConfig {
   appName: string;
   packageName: string;
   icon?: string; // base64
   splash?: string; // base64
+  supabase_url?: string;
+  supabase_key?: string;
 }
 
 export interface Project {
