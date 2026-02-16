@@ -24,34 +24,39 @@ const EditorTabs: React.FC<EditorTabsProps> = ({ tabs, activeTab, onSelect, onCl
   if (tabs.length === 0) return null;
 
   return (
-    <div className="flex bg-[#09090b] border-b border-white/5 overflow-x-auto custom-scrollbar no-scrollbar">
-      {tabs.map(tab => {
-        const isActive = activeTab === tab;
-        const fileName = tab.split('/').pop() || tab;
-        
-        return (
-          <div 
-            key={tab}
-            onClick={() => onSelect(tab)}
-            className={`
-              flex items-center gap-2 px-4 py-2.5 cursor-pointer border-r border-white/5 transition-all min-w-[120px] max-w-[200px] group relative
-              ${isActive ? 'bg-[#0c0c0e] text-white shadow-inner' : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-300'}
-            `}
-          >
-            {isActive && <div className="absolute top-0 left-0 right-0 h-0.5 bg-pink-500"></div>}
-            
-            {getTabIcon(fileName, isActive)}
-            <span className="text-[10px] font-black uppercase tracking-wider truncate flex-1">{fileName}</span>
-            
-            <button 
-              onClick={(e) => onClose(tab, e)}
-              className={`p-1 rounded-md transition-all opacity-0 group-hover:opacity-100 ${isActive ? 'opacity-100 hover:bg-white/10' : 'hover:bg-white/5'}`}
+    <div className="flex bg-[#09090b] border-b border-white/5 overflow-x-auto no-scrollbar scroll-smooth w-full">
+      <div className="flex min-w-full">
+        {tabs.map(tab => {
+          const isActive = activeTab === tab;
+          const fileName = tab.split('/').pop() || tab;
+          
+          return (
+            <div 
+              key={tab}
+              onClick={() => onSelect(tab)}
+              className={`
+                flex items-center gap-2 px-4 py-2.5 cursor-pointer border-r border-white/5 transition-all min-w-[110px] md:min-w-[120px] max-w-[180px] md:max-w-[200px] group relative shrink-0
+                ${isActive ? 'bg-[#0c0c0e] text-white shadow-inner' : 'text-zinc-500 hover:bg-white/5 hover:text-zinc-300'}
+              `}
             >
-              <X size={10} />
-            </button>
-          </div>
-        );
-      })}
+              {isActive && <div className="absolute top-0 left-0 right-0 h-0.5 bg-pink-500"></div>}
+              
+              {getTabIcon(fileName, isActive)}
+              <span className="text-[9px] md:text-[10px] font-black uppercase tracking-wider truncate flex-1">{fileName}</span>
+              
+              <button 
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onClose(tab, e);
+                }}
+                className={`p-1 rounded-md transition-all opacity-0 group-hover:opacity-100 ${isActive ? 'opacity-100 hover:bg-white/10' : 'hover:bg-white/5'}`}
+              >
+                <X size={10} />
+              </button>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
