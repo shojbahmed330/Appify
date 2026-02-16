@@ -1,0 +1,119 @@
+
+export enum AppMode {
+  EDIT = 'EDIT',
+  PREVIEW = 'PREVIEW',
+  CONFIG = 'CONFIG',
+  SHOP = 'SHOP',
+  PROFILE = 'PROFILE',
+  SETTINGS = 'SETTINGS',
+  ADMIN = 'ADMIN',
+  PROJECTS = 'PROJECTS',
+  LIVE_PREVIEW = 'LIVE_PREVIEW',
+  HELP = 'HELP'
+}
+
+export interface ProjectConfig {
+  appName: string;
+  packageName: string;
+  icon?: string; // base64
+  splash?: string; // base64
+}
+
+export interface Project {
+  id: string;
+  user_id: string;
+  name: string;
+  files: Record<string, string>;
+  config?: ProjectConfig;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BuildStep {
+  name: string;
+  status: 'queued' | 'in_progress' | 'completed';
+  conclusion: 'success' | 'failure' | 'skipped' | 'cancelled' | null;
+  started_at?: string;
+  completed_at?: string;
+}
+
+export interface QuestionOption {
+  id: string;
+  label: string;
+  subLabel?: string;
+}
+
+export interface Question {
+  id: string;
+  text: string;
+  type: 'single' | 'multiple';
+  options: QuestionOption[];
+  allowOther?: boolean;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: number;
+  image?: string;
+  questions?: Question[];
+  answersSummary?: string;
+  files?: Record<string, string>;
+  thought?: string;
+}
+
+export interface Package {
+  id: string;
+  name: string;
+  tokens: number;
+  price: number;
+  color: string;
+  icon: string;
+  is_popular: boolean;
+}
+
+export interface Transaction {
+  id: string;
+  user_id: string;
+  package_id: string;
+  amount: number;
+  status: 'pending' | 'completed' | 'rejected';
+  payment_method: string;
+  trx_id: string;
+  screenshot_url?: string;
+  message?: string;
+  created_at: string;
+  user_email?: string; // Virtual field for admin
+}
+
+export interface ActivityLog {
+  id: string;
+  admin_email: string;
+  action: string;
+  details: string;
+  created_at: string;
+}
+
+export interface GithubConfig {
+  token: string;
+  owner: string;
+  repo: string;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  name?: string;
+  avatar_url?: string;
+  tokens: number;
+  isLoggedIn: boolean;
+  joinedAt: number;
+  isAdmin?: boolean;
+  is_banned?: boolean;
+  bio?: string;
+  is_verified?: boolean;
+  github_token?: string;
+  github_owner?: string;
+  github_repo?: string;
+}
