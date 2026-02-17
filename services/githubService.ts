@@ -59,14 +59,21 @@ export class GithubService {
     };
 
     if (appConfig?.icon) allFiles['assets/icon-only.png'] = appConfig.icon;
+    
+    // Production Keystore Handling
+    if (appConfig?.keystore_base64) {
+      allFiles['android/app/release-key.jks'] = appConfig.keystore_base64;
+      // Note: We are pushing a base64 string that contains the binary data. 
+      // Our loop below handles the stripping of data URI prefix.
+    }
 
     const filePaths = Object.keys(allFiles);
     
     // Push regular files first
     for (const path of filePaths) {
       const content = allFiles[path];
-      const isBase64 = content.startsWith('data:image') || path.startsWith('assets/');
-      const finalContent = isBase64 ? content.split(',')[1] || content : toBase64(content);
+      const isBinary = content.startsWith('data:') || path.startsWith('assets/') || path.endsWith('.jks');
+      const finalContent = isBinary ? content.split(',')[1] || content : toBase64(content);
 
       const getRes = await fetch(`${baseUrl}/contents/${path}`, { headers });
       let sha: string | undefined;
@@ -82,7 +89,7 @@ export class GithubService {
       });
     }
 
-    // CRITICAL: Push the workflow file LAST so it only triggers ONE run with all files present
+    // CRITICAL: Push the workflow file LAST
     const workflowPath = '.github/workflows/android.yml';
     const getWorkflowRes = await fetch(`${baseUrl}/contents/${workflowPath}`, { headers });
     let workflowSha: string | undefined;
@@ -91,12 +98,21 @@ export class GithubService {
       workflowSha = data.sha;
     }
 
+    // Prepare modified Workflow YAML with actual secrets from config
+    let finalWorkflow = WORKFLOW_YAML;
+    if (appConfig?.keystore_base64) {
+        finalWorkflow = finalWorkflow
+            .replace('SIGNING_STORE_PASSWORD: ""', `SIGNING_STORE_PASSWORD: "${appConfig.keystore_password}"`)
+            .replace('SIGNING_KEY_ALIAS: ""', `SIGNING_KEY_ALIAS: "${appConfig.key_alias}"`)
+            .replace('SIGNING_KEY_PASSWORD: ""', `SIGNING_KEY_PASSWORD: "${appConfig.key_password}"`);
+    }
+
     await fetch(`${baseUrl}/contents/${workflowPath}`, {
       method: 'PUT',
       headers: { ...headers, 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         message: `Trigger Build Engine [${workflowPath}]`, 
-        content: toBase64(WORKFLOW_YAML), 
+        content: toBase64(finalWorkflow), 
         sha: workflowSha 
       })
     });
@@ -122,10 +138,13 @@ export class GithubService {
     const headers = { 'Authorization': `token ${config.token}`, 'Accept': 'application/vnd.github.v3+json' };
     const artifactsRes = await fetch(details.run.artifacts_url, { headers });
     const data = await artifactsRes.json();
-    const artifact = data.artifacts?.find((a: any) => a.name === 'app-debug');
+    
+    const apk = data.artifacts?.find((a: any) => a.name === 'app-debug' || a.name === 'app-release');
+    const bundle = data.artifacts?.find((a: any) => a.name === 'app-release-bundle');
     
     return { 
-      downloadUrl: artifact?.archive_download_url, 
+      downloadUrl: apk?.archive_download_url, 
+      bundleUrl: bundle?.archive_download_url,
       webUrl: `https://${config.owner}.github.io/${config.repo}/`,
       runUrl: details.run.html_url
     };

@@ -12,6 +12,7 @@ import { usePaymentLogic } from './hooks/usePaymentLogic.ts';
 // Navigation & Layout Imports
 import AppRouter from './navigation/AppRouter.tsx';
 import OnboardingOverlay from './onboarding/OnboardingOverlay.tsx';
+import Toast from './dashboard/components/Toast.tsx';
 
 const AppContent: React.FC = () => {
   const [path, setPath] = useState(window.location.pathname);
@@ -75,6 +76,15 @@ const AppContent: React.FC = () => {
     <>
       {showOnboarding && <OnboardingOverlay onComplete={handleOnboardingComplete} />}
       
+      {/* Global Toast Container */}
+      <div className="fixed top-24 right-6 z-[2000] flex flex-col gap-3 pointer-events-none">
+        {logic.toasts.map(toast => (
+          <div key={toast.id} className="pointer-events-auto">
+            <Toast {...toast} onClose={logic.removeToast} />
+          </div>
+        ))}
+      </div>
+
       <input 
         type="file" ref={fileInputRef} className="hidden" accept="image/*" 
         onChange={(e) => {

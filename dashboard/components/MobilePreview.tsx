@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Sparkles, Loader2, Cpu, QrCode, X, Copy, Check, AlertCircle, Wrench, ShieldCheck } from 'lucide-react';
+import { Sparkles, Loader2, Cpu, QrCode, X, Copy, Check, AlertCircle, Wrench, ShieldCheck, Zap } from 'lucide-react';
 import { AppMode, ProjectConfig, WorkspaceType } from '../../types';
 import { buildFinalHtml } from '../../utils/previewBuilder';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -15,6 +15,8 @@ interface MobilePreviewProps {
   handleBuildAPK: () => void;
   mobileTab: 'chat' | 'preview';
   isGenerating?: boolean;
+  isRepairing?: boolean;
+  repairSuccess?: boolean;
   projectConfig?: ProjectConfig;
   projectId?: string | null;
   runtimeError?: { message: string; line: number; source: string } | null;
@@ -22,7 +24,7 @@ interface MobilePreviewProps {
 }
 
 const MobilePreview: React.FC<MobilePreviewProps> = ({ 
-  projectFiles, workspace, setWorkspace, setMode, handleBuildAPK, mobileTab, isGenerating, projectConfig, projectId,
+  projectFiles, workspace, setWorkspace, setMode, handleBuildAPK, mobileTab, isGenerating, isRepairing, repairSuccess, projectConfig, projectId,
   runtimeError, onAutoFix
 }) => {
   const [showSplash, setShowSplash] = useState(false);
@@ -99,15 +101,41 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({
               srcDoc={finalHtml} 
               className="w-full h-full border-none bg-[#09090b]" 
               title="preview" 
+              key={repairSuccess ? 'repaired' : 'normal'} // Forces iframe re-load if needed
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals" 
             />
             
-            {runtimeError && !isGenerating && (
+            {(runtimeError || isRepairing || repairSuccess) && !isGenerating && (
               <div className="absolute inset-0 bg-black/80 backdrop-blur-md z-[250] flex flex-col items-center justify-center p-6 text-center animate-in fade-in">
-                <div className="w-16 h-16 bg-red-600/20 rounded-full flex items-center justify-center text-red-500 mb-6 border border-red-500/30"><AlertCircle size={32}/></div>
-                <h3 className="text-lg font-black text-white uppercase mb-2">Uplink Interrupted</h3>
-                <p className="text-[10px] font-bold text-zinc-500 uppercase mb-6 leading-relaxed">Error Log: "{runtimeError.message}"</p>
-                <button onClick={onAutoFix} className="px-8 py-4 bg-pink-600 rounded-2xl font-black uppercase text-[10px] flex items-center gap-3 transition-all active:scale-95"><Wrench size={14}/> Auto-Repair Engine</button>
+                {repairSuccess ? (
+                  <div className="space-y-6 flex flex-col items-center animate-in zoom-in duration-500">
+                    <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center border border-green-500/30 shadow-[0_0_40px_rgba(34,197,94,0.3)]">
+                       <ShieldCheck size={40} className="text-green-500" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-white uppercase mb-1">System Healthy</h3>
+                      <p className="text-[10px] font-bold text-green-500 uppercase tracking-widest">Sync Complete • Code Repaired</p>
+                    </div>
+                  </div>
+                ) : isRepairing ? (
+                  <div className="space-y-6 flex flex-col items-center">
+                    <div className="w-20 h-20 bg-pink-500/10 rounded-full flex items-center justify-center border border-pink-500/30 relative">
+                       <Zap size={32} className="text-pink-500 animate-pulse" />
+                       <div className="absolute inset-0 border-2 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-white uppercase mb-1">Self-Healing Engine</h3>
+                      <p className="text-[10px] font-bold text-pink-500 uppercase tracking-widest animate-pulse">Fixing Runtime Interruption...</p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="w-16 h-16 bg-red-600/20 rounded-full flex items-center justify-center text-red-500 mb-6 border border-red-500/30"><AlertCircle size={32}/></div>
+                    <h3 className="text-lg font-black text-white uppercase mb-2">Uplink Interrupted</h3>
+                    <p className="text-[10px] font-bold text-zinc-500 uppercase mb-6 leading-relaxed">Error Log: "{runtimeError?.message}"</p>
+                    <button onClick={onAutoFix} className="px-8 py-4 bg-pink-600 rounded-2xl font-black uppercase text-[10px] flex items-center gap-3 transition-all active:scale-95"><Wrench size={14}/> Manual Repair Trigger</button>
+                  </>
+                )}
               </div>
             )}
             

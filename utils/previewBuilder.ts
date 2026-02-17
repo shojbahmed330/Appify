@@ -13,7 +13,7 @@ export const buildFinalHtml = (projectFiles: Record<string, string>, entryPath: 
       // Database Bridge Injection
       ${supabaseConfig}
 
-      // Error Reporting System
+      // Advanced Error Reporting System for Self-Healing
       window.onerror = function(message, source, lineno, colno, error) {
         window.parent.postMessage({
           type: 'RUNTIME_ERROR',
@@ -21,6 +21,7 @@ export const buildFinalHtml = (projectFiles: Record<string, string>, entryPath: 
             message: message, 
             line: lineno, 
             column: colno,
+            stack: error?.stack || '',
             source: source ? source.split('/').pop() : 'index.html'
           }
         }, '*');

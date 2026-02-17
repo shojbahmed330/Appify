@@ -9,6 +9,11 @@ const SYSTEM_PROMPT = `You are OneClick Studio, a World-Class Senior Lead Androi
 - **CRITICAL**: ONLY generate "admin/" files if the project requires data management, user control, or database interactions. For simple utility apps (like calculators, stopwatches, or simple games), DO NOT generate the admin panel.
 - Entry points: "app/index.html" and "admin/index.html" (if needed).
 
+### DATABASE SCHEMA PROTOCOL:
+- **IMPORTANT**: If the project requires Supabase or any data storage, you MUST generate a file named "database.sql".
+- This "database.sql" should contain all necessary CREATE TABLE, ALTER TABLE, and RLS policy statements.
+- Ensure the SQL is optimized for Supabase.
+
 ### MOBILE RESPONSIVENESS PROTOCOL:
 - All generated UIs MUST be strictly responsive and stay within the mobile viewport bounds.
 - Use 'overflow-hidden' on main containers to prevent horizontal scrolling.
@@ -25,7 +30,7 @@ const SYSTEM_PROMPT = `You are OneClick Studio, a World-Class Senior Lead Androi
   "thought": "Internal reasoning.",
   "summary": "1-line summary.",
   "questions": [],
-  "files": { "app/index.html": "...", "admin/index.html": "..." }
+  "files": { "app/index.html": "...", "admin/index.html": "...", "database.sql": "..." }
 }
 
 ### DESIGN PHILOSOPHY:
@@ -58,6 +63,10 @@ export class GeminiService {
     const ai = new GoogleGenAI({ apiKey: key });
     const modelName = usePro ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview';
 
+    // Optimize context: Only send file paths and names, or small relevant history to avoid payload bloat
+    const contextFiles = { ...currentFiles };
+    // If files are too many, we might need to prune here, but for now we keep it.
+
     const supabaseContext = projectConfig?.supabase_url ? 
       `DATABASE BRIDGE ACTIVE: 
        URL: ${projectConfig.supabase_url}
@@ -67,8 +76,8 @@ export class GeminiService {
     const parts: any[] = [
       { text: `User Prompt: ${prompt}` },
       { text: supabaseContext },
-      { text: `Current Workspace Files: ${JSON.stringify(currentFiles)}` },
-      { text: `History: ${JSON.stringify(history.slice(-10))}` }
+      { text: `Current Workspace Files: ${JSON.stringify(contextFiles)}` },
+      { text: `History: ${JSON.stringify(history.slice(-5).map(m => ({ role: m.role, content: m.content.slice(0, 500) })))}` }
     ];
 
     if (image) {
@@ -86,7 +95,9 @@ export class GeminiService {
         contents: { parts },
         config: {
           systemInstruction: SYSTEM_PROMPT,
-          responseMimeType: "application/json"
+          responseMimeType: "application/json",
+          // Disable thinking budget for flash to prevent timeouts and "signal aborted" errors
+          thinkingConfig: !usePro ? { thinkingBudget: 0 } : undefined
         }
       });
       
@@ -112,6 +123,12 @@ export class GeminiService {
       }
     } catch (error: any) {
       console.error(`Gemini Service Error (${modelName}):`, error);
+      
+      // Specifically handle the "aborted" signal error which can happen due to timeouts
+      if (error.message?.includes('aborted') || error.message?.includes('signal')) {
+        console.warn("Request was aborted. Attempting fallback/retry...");
+      }
+
       if (usePro && !error.message?.includes('API_KEY_INVALID')) {
         return this.generateWebsite(prompt, currentFiles, history, image, false, projectConfig);
       }

@@ -21,6 +21,11 @@ export interface ProjectConfig {
   splash?: string; // base64
   supabase_url?: string;
   supabase_key?: string;
+  // Production Signing (Keystore)
+  keystore_base64?: string;
+  keystore_password?: string;
+  key_alias?: string;
+  key_password?: string;
 }
 
 export interface Project {

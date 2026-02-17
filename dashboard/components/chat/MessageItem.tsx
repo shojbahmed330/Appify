@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { Sparkles, Zap } from 'lucide-react';
+import React, { useState } from 'react';
+import { Sparkles, Zap, Database, Copy, Check } from 'lucide-react';
 import Questionnaire from '../Questionnaire';
 import { useLanguage } from '../../../i18n/LanguageContext';
 
@@ -12,6 +12,17 @@ interface MessageItemProps {
 
 const MessageItem: React.FC<MessageItemProps> = ({ message: m, index: idx, handleSend }) => {
   const { t } = useLanguage();
+  const [copiedSql, setCopiedSql] = useState(false);
+
+  const sqlFile = m.files && m.files['database.sql'];
+
+  const copySql = () => {
+    if (sqlFile) {
+      navigator.clipboard.writeText(sqlFile);
+      setCopiedSql(true);
+      setTimeout(() => setCopiedSql(false), 2000);
+    }
+  };
   
   return (
     <div 
@@ -46,6 +57,32 @@ const MessageItem: React.FC<MessageItemProps> = ({ message: m, index: idx, handl
               : part
             )}
           </div>
+
+          {/* Database SQL Notice */}
+          {sqlFile && m.role === 'assistant' && (
+            <div className="mt-5 p-5 bg-indigo-500/10 border border-indigo-500/30 rounded-2xl animate-in zoom-in duration-500">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                   <div className="p-2 bg-indigo-500 rounded-xl text-white shadow-[0_0_15px_rgba(99,102,241,0.5)]">
+                     <Database size={16}/>
+                   </div>
+                   <div>
+                     <div className="text-[10px] font-black uppercase tracking-widest text-white">Database Schema</div>
+                     <div className="text-[8px] font-bold text-indigo-400 uppercase tracking-tighter">Required for Supabase</div>
+                   </div>
+                </div>
+                <button 
+                  onClick={copySql}
+                  className={`p-2.5 rounded-xl transition-all ${copiedSql ? 'bg-green-500 text-white' : 'bg-white/5 text-indigo-400 hover:bg-white/10'}`}
+                >
+                  {copiedSql ? <Check size={14}/> : <Copy size={14}/>}
+                </button>
+              </div>
+              <p className="text-[10px] text-zinc-400 leading-relaxed font-medium">
+                Run these SQL commands in your Supabase SQL Editor to initialize your app tables and policies.
+              </p>
+            </div>
+          )}
 
           {m.answersSummary ? (
             <div className="mt-4 p-5 bg-white/5 border border-white/5 rounded-2xl italic text-zinc-500 text-[11px] leading-relaxed animate-in fade-in duration-700 break-words">

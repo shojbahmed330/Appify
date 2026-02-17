@@ -12,11 +12,7 @@ const renderApp = () => {
 
   try {
     const root = createRoot(rootElement);
-    root.render(
-      <React.StrictMode>
-        <App />
-      </React.StrictMode>
-    );
+    root.render(<App />);
   } catch (error) {
     console.error("React Mounting Error:", error);
     rootElement.innerHTML = `<div style="color: white; background: #000; height: 100vh; display: flex; align-items: center; justify-content: center; font-family: sans-serif; text-align: center; padding: 20px;">
